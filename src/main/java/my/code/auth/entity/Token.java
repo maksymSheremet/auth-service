@@ -16,15 +16,16 @@ public class Token {
     private Long id;
 
     @Column(unique = true)
-    public String token;
+    private String token;
 
+    @Builder.Default
     @Enumerated(EnumType.STRING)
-    public TokenType tokenType = TokenType.BEARER;
+    private TokenType tokenType = TokenType.BEARER;
 
-    public boolean expired;
-    public boolean revoked;
+    private boolean expired;
+    private boolean revoked;
 
     @ManyToOne
     @JoinColumn(name = "user_id")
-    public User user;
+    private User user;
 }

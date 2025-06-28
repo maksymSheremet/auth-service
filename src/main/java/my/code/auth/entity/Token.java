@@ -9,23 +9,28 @@ import lombok.*;
 @AllArgsConstructor
 @Builder
 @Entity
-@Table(name = "token")
+@Table(name = "tokens")
 public class Token {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(unique = true)
+    @Column(nullable = false, unique = true)
     private String token;
 
     @Builder.Default
     @Enumerated(EnumType.STRING)
     private TokenType tokenType = TokenType.BEARER;
 
-    private boolean expired;
-    private boolean revoked;
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean expired = false;
+
+    @Builder.Default
+    @Column(nullable = false)
+    private boolean revoked = false;
 
     @ManyToOne
-    @JoinColumn(name = "user_id")
+    @JoinColumn(name = "user_id", nullable = false)
     private User user;
 }

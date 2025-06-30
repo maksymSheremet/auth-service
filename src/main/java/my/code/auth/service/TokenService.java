@@ -10,6 +10,7 @@ import my.code.auth.repository.TokenRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Optional;
 
 @Slf4j
 @Service
@@ -28,6 +29,10 @@ public class TokenService {
                 .revoked(false)
                 .build();
         tokenRepository.save(token);
+    }
+
+    public Optional<Token> findByToken(String token) {
+        return tokenRepository.findByToken(token);
     }
 
     public void revokeAllUserTokens(User user) {

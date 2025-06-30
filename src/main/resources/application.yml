@@ -27,6 +27,10 @@ spring:
             client-id: ${YOUR_GITHUB_CLIENT_ID}
             client-secret: ${YOUR_GITHUB_CLIENT_SECRET}
             scope: read:user,user:email
+        provider:
+              github:
+                user-info-uri: ${YOUR_GITHUB_INFO_URI}
+                user-name-attribute: login
   flyway:
     enabled: true
     baseline-on-migrate: false

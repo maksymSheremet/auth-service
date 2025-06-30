@@ -14,6 +14,9 @@ import org.springframework.stereotype.Service;
 
 import java.util.Collections;
 import java.util.Map;
+import java.util.Objects;
+
+import static my.code.auth.util.OAuth2Provider.fromString;
 
 
 @Slf4j
@@ -25,23 +28,22 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     @Override
     public OAuth2User loadUser(OAuth2UserRequest userRequest) {
+        log.info("Processing OAuth2 user request for provider: {}", userRequest.getClientRegistration().getRegistrationId());
         OAuth2User oAuth2User = super.loadUser(userRequest);
         Map<String, Object> attributes = oAuth2User.getAttributes();
-        String provider = userRequest.getClientRegistration().getRegistrationId();
+        String provider = userRequest.getClientRegistration().getRegistrationId().toUpperCase();
 
         try {
-            String email = extractEmail(attributes, provider);
-            String name = extractName(attributes, provider);
-
-            User user = userRepository.findByEmail(email)
-                    .orElseGet(() -> createUser(email, name, provider));
+            OAuth2UserAttributes userAttributes = extractUserAttributes(attributes, provider);
+            User user = userRepository.findByProviderAndProviderId(provider, userAttributes.providerId())
+                    .orElseGet(() -> createOrUpdateUser(userAttributes, provider));
 
             user = userRepository.save(user);
 
             return new DefaultOAuth2User(
-                    Collections.singleton(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())),
+                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())),
                     attributes,
-                    getNameAttributeKey(provider)
+                    fromString(provider).getNameAttributeKey()
             );
         } catch (IllegalArgumentException e) {
             log.error("Failed to process OAuth2 user for provider {}: {}", provider, e.getMessage());
@@ -49,50 +51,112 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         }
     }
 
-    private String extractEmail(Map<String, Object> attributes, String provider) {
-        if ("google".equals(provider)) {
-            String email = (String) attributes.get("email");
-            if (email == null) {
-                throw new IllegalArgumentException("Email not provided by Google");
+    private OAuth2UserAttributes extractUserAttributes(Map<String, Object> attributes, String provider) {
+        return switch (provider) {
+            case "GOOGLE" -> {
+                String email = (String) attributes.get("email");
+
+                if (email == null) {
+                    throw new IllegalArgumentException("Email not provided by Google");
+                }
+
+                String firstName = (String) attributes.get("given_name");
+                String lastName = (String) attributes.get("family_name");
+                String providerId = (String) attributes.get("sub");
+
+                if (providerId == null) {
+                    throw new IllegalArgumentException("Provider ID (sub) not provided by Google");
+                }
+
+                if (firstName == null || lastName == null) {
+                    String fullName = (String) attributes.get("name");
+                    if (fullName != null) {
+                        String[] nameParts = fullName.split(" ", 2);
+                        firstName = nameParts[0];
+                        lastName = nameParts.length > 1 ? nameParts[1] : null;
+                    }
+                }
+
+                yield new OAuth2UserAttributes(email, firstName, lastName, providerId);
             }
-            return email;
-        } else if ("github".equals(provider)) {
-            String email = (String) attributes.get("email");
-            if (email == null) {
-                String login = (String) attributes.get("login");
-                return login + "@github.com";
+            case "GITHUB" -> {
+                String email = (String) attributes.get("email");
+                String firstName = (String) attributes.get("login");
+                String providerId = String.valueOf(attributes.get("id"));
+
+                if (providerId == null) {
+                    throw new IllegalArgumentException("Provider ID (id) not provided by GitHub");
+                }
+
+                if (email == null) {
+                    log.warn("Email not provided by GitHub for user with login: {}, using default email", firstName);
+                    email = "github-user-" + providerId + "@default.com";
+                }
+
+                String fullName = (String) attributes.get("name");
+                String lastName = null;
+
+                if (fullName != null && fullName.contains(" ")) {
+                    String[] nameParts = fullName.split(" ", 2);
+                    firstName = nameParts[0];
+                    lastName = nameParts.length > 1 ? nameParts[1] : null;
+                    log.info("Splitting login {} into firstName: {}, lastName: {}", fullName, firstName, lastName);
+                }
+
+                yield new OAuth2UserAttributes(email, firstName, lastName, providerId);
             }
-            return email;
-        }
-        throw new IllegalArgumentException("Unsupported provider: " + provider);
+            default -> throw new IllegalArgumentException("Unsupported provider: " + provider);
+        };
     }
 
-    private String extractName(Map<String, Object> attributes, String provider) {
-        if ("google".equals(provider)) {
-            return (String) attributes.get("name");
-        } else if ("github".equals(provider)) {
-            return (String) attributes.get("login");
-        }
-        return null;
+    private User createOrUpdateUser(OAuth2UserAttributes attributes, String provider) {
+        return userRepository.findByEmail(attributes.email())
+                .map(existingUser -> updateUser(existingUser, attributes))
+                .orElseGet(() -> createNewUser(attributes, provider));
     }
 
-    private User createUser(String email, String name, String provider) {
+    private User createNewUser(OAuth2UserAttributes attributes, String provider) {
+        log.info("Creating new user with email: {}", attributes.email());
         return User.builder()
-                .email(email)
-                .firstname(name != null ? name : email.split("@")[0])
-                .password(null) // OAuth2 users don't need a password
+                .email(attributes.email())
+                .firstname(attributes.firstName() != null ? attributes.firstName() : attributes.email() != null ? attributes.email().split("@")[0] : "Unknown")
+                .lastname(attributes.lastName())
+                .password(null)
                 .provider(provider)
+                .providerId(attributes.providerId())
                 .role(Role.USER)
                 .enabled(true)
                 .build();
     }
 
-    private String getNameAttributeKey(String provider) {
-        if ("google".equals(provider)) {
-            return "sub";
-        } else if ("github".equals(provider)) {
-            return "id";
+    private User updateUser(User existingUser, OAuth2UserAttributes attributes) {
+        log.info("Updating user with email: {}", existingUser.getEmail());
+        boolean needsUpdate = !existingUser.getProviderId().equals(attributes.providerId()) ||
+                              (attributes.firstName() != null && !attributes.firstName().equals(existingUser.getFirstname())) ||
+                              (attributes.lastName() != null && !attributes.lastName().equals(existingUser.getLastname())) ||
+                              (attributes.email() != null && !attributes.email().equals(existingUser.getEmail()));
+
+        if (needsUpdate) {
+            existingUser.setProviderId(attributes.providerId());
+            if (attributes.firstName() != null) {
+                existingUser.setFirstname(attributes.firstName());
+            }
+            if (attributes.lastName() != null) {
+                existingUser.setLastname(attributes.lastName());
+            }
+            if (attributes.email() != null) {
+                existingUser.setEmail(attributes.email());
+            }
         }
-        return "id";
+        return existingUser;
+    }
+
+    private record OAuth2UserAttributes(String email, String firstName, String lastName, String providerId) {
+        public OAuth2UserAttributes {
+            if (!"GITHUB".equals(providerId) && email == null) {
+                throw new IllegalArgumentException("Email cannot be null for provider other than GitHub");
+            }
+            Objects.requireNonNull(providerId, "ProviderId cannot be null");
+        }
     }
 }

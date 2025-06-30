@@ -20,7 +20,6 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 import org.springframework.security.core.GrantedAuthority;
-import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
 import java.util.Collection;
@@ -49,21 +48,15 @@ public class User implements UserDetails {
     @Column(unique = true, nullable = false)
     private String email;
 
-    /**
-     * Hashed password (using BCrypt) for local authentication; null for OAuth2 users.
-     */
     private String password;
 
-    /**
-     * Authentication provider (e.g., "google", "github", "local").
-     */
     @Column(nullable = false)
     private String provider;
 
-    /**
-     * Indicates whether the user account is enabled.
-     */
-    @Column(name = "enabled", nullable = false)
+    @Column(name = "provider_id", nullable = false, unique = true)
+    private String providerId;
+
+    @Column(nullable = false)
     private boolean enabled;
 
     @NotNull(message = "Role cannot be null")
@@ -81,21 +74,6 @@ public class User implements UserDetails {
     @Override
     public String getUsername() {
         return email;
-    }
-
-    @Override
-    public boolean isAccountNonExpired() {
-        return true;
-    }
-
-    @Override
-    public boolean isAccountNonLocked() {
-        return true;
-    }
-
-    @Override
-    public boolean isCredentialsNonExpired() {
-        return true;
     }
 
     @Override

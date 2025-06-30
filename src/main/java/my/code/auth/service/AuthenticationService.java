@@ -17,4 +17,5 @@ public interface AuthenticationService {
     void logout(RefreshTokenRequest request);
 
     void changePassword(ChangePasswordRequest request, String email);
+
 }

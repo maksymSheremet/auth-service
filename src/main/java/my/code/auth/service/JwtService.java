@@ -9,10 +9,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import my.code.auth.config.security.JwtProperties;
-import my.code.auth.entity.Token;
 import my.code.auth.entity.TokenType;
 import my.code.auth.entity.User;
-import my.code.auth.repository.TokenRepository;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
@@ -28,7 +26,7 @@ import java.util.function.Function;
 public class JwtService {
 
     private final JwtProperties jwtProperties;
-    private final TokenRepository tokenRepository;
+    private final TokenService tokenService;
 
     private Key key;
 
@@ -59,14 +57,7 @@ public class JwtService {
                 .signWith(key, SignatureAlgorithm.HS256)
                 .compact();
 
-        Token tokenEntity = Token.builder()
-                .user(user)
-                .token(token)
-                .tokenType(tokenType)
-                .expired(false)
-                .revoked(false)
-                .build();
-        tokenRepository.save(tokenEntity);
+        tokenService.saveUserToken(user, token, tokenType);
 
         return token;
     }
@@ -81,10 +72,6 @@ public class JwtService {
 
     public Long extractUserId(String token) {
         return extractClaim(token, claims -> claims.get("userId", Long.class));
-    }
-
-    public String extractTokenType(String token) {
-        return extractClaim(token, claims -> claims.get("tokenType", String.class));
     }
 
     public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
@@ -107,9 +94,9 @@ public class JwtService {
 
     public boolean isTokenValid(String token, User user) {
         final String username = extractUsername(token);
-        boolean isRevoked = tokenRepository.findByToken(token)
+        boolean isRevoked = tokenService.findByToken(token)
                 .map(t -> t.isRevoked() || t.isExpired())
-                .orElse(true); // Consider token invalid if not found
+                .orElse(true);
         return username.equals(user.getEmail()) && !isTokenExpired(token) && !isRevoked;
     }
 

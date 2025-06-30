@@ -8,7 +8,6 @@ import my.code.auth.dto.ChangePasswordRequest;
 import my.code.auth.dto.RefreshTokenRequest;
 import my.code.auth.dto.RegisterRequest;
 import my.code.auth.entity.Role;
-import my.code.auth.entity.TokenType;
 import my.code.auth.entity.User;
 import my.code.auth.exception.InvalidPasswordException;
 import my.code.auth.exception.InvalidTokenException;
@@ -40,6 +39,9 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .email(request.getEmail())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .role(Role.USER)
+                .provider("LOCAL")
+                .providerId("LOCAL_" + System.currentTimeMillis())
+                .enabled(true)
                 .build();
         userRepository.save(user);
 
@@ -87,11 +89,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
             throw new InvalidTokenException("Invalid refresh token");
         }
 
-        var user = userRepository.findByEmail(userEmail)
-                .orElseThrow(() -> {
-                    log.error("User not found with email: {}", userEmail);
-                    return new UserNotFoundException("User not found with email: " + userEmail);
-                });
+        var user = findUserByEmail(userEmail);
 
         if (!jwtService.isTokenValid(refreshToken, user)) {
             log.error("Refresh token not valid for user: {}", userEmail);
@@ -116,11 +114,7 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     @Override
     public void changePassword(ChangePasswordRequest request, String email) {
         log.debug("Attempting to change password for user: {}", email);
-        User user = userRepository.findByEmail(email)
-                .orElseThrow(() -> {
-                    log.error("User not found with email: {}", email);
-                    return new UserNotFoundException("User not found with email: " + email);
-                });
+        User user = findUserByEmail(email);
 
         if (!passwordEncoder.matches(request.getCurrentPassword(), user.getPassword())) {
             log.error("Invalid current password for user: {}", email);
@@ -131,4 +125,13 @@ public class AuthenticationServiceImpl implements AuthenticationService {
         userRepository.save(user);
         log.info("Password changed successfully for user: {}", email);
     }
+
+    private User findUserByEmail(String userEmail) {
+        return userRepository.findByEmail(userEmail)
+                .orElseThrow(() -> {
+                    log.error("User not found with email: {}", userEmail);
+                    return new UserNotFoundException("User not found with email: " + userEmail);
+                });
+    }
+
 }

@@ -7,11 +7,13 @@ import my.code.auth.dto.AuthenticationResponse;
 import my.code.auth.dto.ChangePasswordRequest;
 import my.code.auth.dto.RefreshTokenRequest;
 import my.code.auth.dto.RegisterRequest;
+import my.code.auth.dto.UserRegisteredEvent;
 import my.code.auth.entity.Role;
 import my.code.auth.entity.User;
 import my.code.auth.exception.InvalidPasswordException;
 import my.code.auth.exception.InvalidTokenException;
 import my.code.auth.exception.UserNotFoundException;
+import my.code.auth.kafka.UserRegistrationProducer;
 import my.code.auth.repository.UserRepository;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.BadCredentialsException;
@@ -29,10 +31,14 @@ public class AuthenticationServiceImpl implements AuthenticationService {
     private final PasswordEncoder passwordEncoder;
     private final JwtService jwtService;
     private final AuthenticationManager authenticationManager;
+    private final UserRegistrationProducer producer;
 
 
     @Override
     public AuthenticationResponse register(RegisterRequest request) {
+        if (userRepository.existsByEmail(request.getEmail())) {
+            throw new IllegalArgumentException("Email already in use");
+        }
         var user = User.builder()
                 .firstname(request.getFirstName())
                 .lastname(request.getLastName())
@@ -43,7 +49,19 @@ public class AuthenticationServiceImpl implements AuthenticationService {
                 .providerId("LOCAL_" + System.currentTimeMillis())
                 .enabled(true)
                 .build();
-        userRepository.save(user);
+        var saved = userRepository.save(user);
+
+        UserRegisteredEvent event = UserRegisteredEvent.builder()
+                .userId(saved.getId())
+                .email(saved.getEmail())
+                .fullName(saved.getFirstname() + " " + saved.getLastname())
+//                .avatarUrl(request.getAvatarUrl())
+//                .timezone(request.getTimezone())
+//                .language(request.getLanguage())
+//                .createdAt(Instant.now())
+                .build();
+
+        producer.send(event);
 
         var accessToken = jwtService.generateToken(user);
         var refreshToken = jwtService.generateRefreshToken(user);

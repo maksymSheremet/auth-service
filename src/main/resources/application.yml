@@ -57,6 +57,8 @@ spring:
       value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
       acks: all
       retries: 3
+      properties:
+        spring.json.add.type.headers: false
 
 # Kafka Topics
 kafka:

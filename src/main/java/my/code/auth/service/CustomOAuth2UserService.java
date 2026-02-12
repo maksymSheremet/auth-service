@@ -2,9 +2,9 @@ package my.code.auth.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import my.code.auth.entity.Role;
-import my.code.auth.entity.User;
-import my.code.auth.repository.UserRepository;
+import my.code.auth.database.entity.Role;
+import my.code.auth.database.entity.User;
+import my.code.auth.database.repository.UserRepository;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;

@@ -1,4 +1,4 @@
-package my.code.auth.entity;
+package my.code.auth.database.entity;
 
 import org.springframework.security.core.GrantedAuthority;
 

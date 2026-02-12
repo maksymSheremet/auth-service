@@ -2,11 +2,11 @@ package my.code.auth.service;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import my.code.auth.entity.Token;
-import my.code.auth.entity.TokenType;
-import my.code.auth.entity.User;
+import my.code.auth.database.entity.Token;
+import my.code.auth.database.entity.TokenType;
+import my.code.auth.database.entity.User;
 import my.code.auth.exception.InvalidTokenException;
-import my.code.auth.repository.TokenRepository;
+import my.code.auth.database.repository.TokenRepository;
 import org.springframework.stereotype.Service;
 
 import java.util.List;

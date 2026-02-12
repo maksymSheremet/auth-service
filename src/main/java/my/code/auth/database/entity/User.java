@@ -1,4 +1,4 @@
-package my.code.auth.entity;
+package my.code.auth.database.entity;
 
 
 import jakarta.persistence.CascadeType;
@@ -22,6 +22,7 @@ import lombok.Setter;
 import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 
@@ -63,8 +64,9 @@ public class User implements UserDetails {
     @Enumerated(EnumType.STRING)
     private Role role;
 
+    @Builder.Default
     @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true)
-    private List<Token> tokens;
+    private List<Token> tokens = new ArrayList<>();
 
     @Override
     public Collection<? extends GrantedAuthority> getAuthorities() {
@@ -79,5 +81,17 @@ public class User implements UserDetails {
     @Override
     public boolean isEnabled() {
         return enabled;
+    }
+
+    @Override
+    public final boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof User other)) return false;
+        return id != null && id.equals(other.getId());
+    }
+
+    @Override
+    public final int hashCode() {
+        return getClass().hashCode();
     }
 }

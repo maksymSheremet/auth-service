@@ -1,4 +1,4 @@
-package my.code.auth.entity;
+package my.code.auth.database.entity;
 
 public enum TokenType {
     BEARER,

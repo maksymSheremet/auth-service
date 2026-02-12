@@ -1,7 +1,8 @@
-package my.code.auth.repository;
+package my.code.auth.database.repository;
 
-import my.code.auth.entity.Token;
+import my.code.auth.database.entity.Token;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
@@ -13,5 +14,11 @@ public interface TokenRepository extends JpaRepository<Token, Long> {
     List<Token> findAllValidTokensByUser(Long userId);
 
     Optional<Token> findByToken(String token);
+
+    /** Bulk-revoke all active tokens for a user. Returns count of updated rows. */
+    @Modifying
+    @Query("UPDATE Token t SET t.expired = true, t.revoked = true " +
+           "WHERE t.user.id = :userId AND (t.expired = false OR t.revoked = false)")
+    int revokeAllTokensByUser(Long userId);
 
 }

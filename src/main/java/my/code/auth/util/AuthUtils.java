@@ -3,7 +3,7 @@ package my.code.auth.util;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import my.code.auth.entity.User;
+import my.code.auth.database.entity.User;
 import my.code.auth.exception.InvalidTokenException;
 import my.code.auth.service.JwtService;
 import org.springframework.security.core.Authentication;

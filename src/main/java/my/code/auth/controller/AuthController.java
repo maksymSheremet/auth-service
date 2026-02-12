@@ -8,7 +8,7 @@ import my.code.auth.dto.AuthenticationResponse;
 import my.code.auth.dto.ChangePasswordRequest;
 import my.code.auth.dto.RefreshTokenRequest;
 import my.code.auth.dto.RegisterRequest;
-import my.code.auth.entity.User;
+import my.code.auth.database.entity.User;
 import my.code.auth.service.AuthenticationService;
 import my.code.auth.util.AuthUtils;
 import org.springframework.http.ResponseEntity;

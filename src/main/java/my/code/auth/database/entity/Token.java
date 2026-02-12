@@ -1,4 +1,4 @@
-package my.code.auth.entity;
+package my.code.auth.database.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
@@ -15,6 +15,8 @@ import lombok.Builder;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+
+import java.time.Instant;
 
 @Getter
 @Setter
@@ -43,7 +45,24 @@ public class Token {
     @Column(nullable = false)
     private boolean revoked = false;
 
+    @Column(nullable = false, updatable = false)
+    private Instant createdAt;
+
+    private Instant expiresAt;
+
     @ManyToOne
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
+
+    @Override
+    public final boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Token other)) return false;
+        return id != null && id.equals(other.getId());
+    }
+
+    @Override
+    public final int hashCode() {
+        return getClass().hashCode();
+    }
 }

@@ -9,8 +9,8 @@ import jakarta.annotation.PostConstruct;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import my.code.auth.config.security.JwtProperties;
-import my.code.auth.entity.TokenType;
-import my.code.auth.entity.User;
+import my.code.auth.database.entity.TokenType;
+import my.code.auth.database.entity.User;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;

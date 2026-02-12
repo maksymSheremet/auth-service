@@ -1,6 +1,6 @@
-package my.code.auth.repository;
+package my.code.auth.database.repository;
 
-import my.code.auth.entity.User;
+import my.code.auth.database.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 import java.util.Optional;

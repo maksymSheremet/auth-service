@@ -60,16 +60,21 @@ spring:
       properties:
         spring.json.add.type.headers: false
 
-# Kafka Topics
+# Kafka Topics & Outbox
 kafka:
   topic:
     user-registered: user-registered-events
+  outbox:
+    poll-interval-ms: 5000
+    cleanup-days: 7
+    cleanup-cron: "0 0 3 * * *"
 
 # JWT
 jwt:
   secret: ${YOUR_JWT_SECRET_KEY}
   expiration: 3600000
   refresh-expiration: 604800000
+  issuer: auth-service
 
 # BCrypt
 bcrypt:

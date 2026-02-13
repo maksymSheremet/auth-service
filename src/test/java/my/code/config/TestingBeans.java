@@ -3,7 +3,6 @@ package my.code.config;
 import io.jsonwebtoken.SignatureAlgorithm;
 import io.jsonwebtoken.security.Keys;
 import my.code.auth.config.security.JwtProperties;
-import my.code.auth.kafka.UserRegistrationProducer;
 import org.mockito.Mockito;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.context.annotation.Bean;

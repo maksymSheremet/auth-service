@@ -22,4 +22,7 @@ public class JwtProperties {
 
     @Min(value = 60000, message = "Refresh token expiration must be at least 60 seconds")
     private long refreshExpiration;
+
+    @NotBlank(message = "JWT issuer must not be blank")
+    private String issuer;
 }

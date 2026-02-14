@@ -49,16 +49,15 @@ spring:
     baseline-on-migrate: false
     locations: classpath:db/migration
 
+
   # Kafka
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
       key-serializer: org.apache.kafka.common.serialization.StringSerializer
-      value-serializer: org.springframework.kafka.support.serializer.JsonSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
       acks: all
       retries: 3
-      properties:
-        spring.json.add.type.headers: false
 
 # Kafka Topics & Outbox
 kafka:
@@ -86,10 +85,6 @@ logging:
     root: INFO
     my.code.auth: INFO
     org.springframework.kafka: INFO
-
-# User Service
-user-service:
-  url: ${USER_SERVICE_URL:http://localhost:8081}
 
 # Actuator
 management:

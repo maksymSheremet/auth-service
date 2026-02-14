@@ -1,48 +1,44 @@
 package my.code.auth.util;
 
-import jakarta.servlet.http.HttpServletRequest;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import my.code.auth.database.entity.User;
-import my.code.auth.exception.InvalidTokenException;
-import my.code.auth.service.JwtService;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Component;
 
-@Slf4j
+import java.util.Optional;
+
+/**
+ * Utility for extracting authenticated user info from SecurityContext.
+ */
 @Component
-@RequiredArgsConstructor
 public class AuthUtils {
 
-    private final JwtService jwtService;
-
-    public String getCurrentUserEmail(HttpServletRequest request) {
+    /**
+     * Returns the authenticated User entity, if available.
+     */
+    public Optional<User> getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         if (auth != null && auth.getPrincipal() instanceof User user) {
-            return user.getEmail();
+            return Optional.of(user);
         }
-
-        String token = extractTokenFromHeader(request);
-        return jwtService.extractUsername(token);
+        return Optional.empty();
     }
 
-    public String getCurrentUserRole(HttpServletRequest request) {
-        String token = extractTokenFromHeader(request);
-        return jwtService.extractUserRole(token);
+    public String getCurrentEmail() {
+        return getCurrentUser()
+                .map(User::getEmail)
+                .orElse(null);
     }
 
-    public Long getCurrentUserId(HttpServletRequest request) {
-        String token = extractTokenFromHeader(request);
-        return jwtService.extractUserId(token);
+    public Long getCurrentUserId() {
+        return getCurrentUser()
+                .map(User::getId)
+                .orElse(null);
     }
 
-    private String extractTokenFromHeader(HttpServletRequest request) {
-        String authHeader = request.getHeader("Authorization");
-        if (authHeader == null || !authHeader.startsWith("Bearer ")) {
-            log.error("Missing or invalid Authorization header");
-            throw new InvalidTokenException("Missing or invalid Authorization header");
-        }
-        return authHeader.substring(7);
+    public String getCurrentRole() {
+        return getCurrentUser()
+                .map(user -> user.getRole().getAuthority())
+                .orElse(null);
     }
 }

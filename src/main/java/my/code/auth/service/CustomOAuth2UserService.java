@@ -5,19 +5,22 @@ import lombok.extern.slf4j.Slf4j;
 import my.code.auth.database.entity.Role;
 import my.code.auth.database.entity.User;
 import my.code.auth.database.repository.UserRepository;
+import my.code.auth.event.UserRegisteredEvent;
+import my.code.auth.kafka.OutboxEventPublisher;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.oauth2.client.userinfo.DefaultOAuth2UserService;
 import org.springframework.security.oauth2.client.userinfo.OAuth2UserRequest;
 import org.springframework.security.oauth2.core.user.DefaultOAuth2User;
 import org.springframework.security.oauth2.core.user.OAuth2User;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
+import java.time.Instant;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Objects;
 
 import static my.code.auth.util.OAuth2Provider.fromString;
-
 
 @Slf4j
 @Service
@@ -25,138 +28,130 @@ import static my.code.auth.util.OAuth2Provider.fromString;
 public class CustomOAuth2UserService extends DefaultOAuth2UserService {
 
     private final UserRepository userRepository;
+    private final OutboxEventPublisher outboxEventPublisher;
 
     @Override
+    @Transactional
     public OAuth2User loadUser(OAuth2UserRequest userRequest) {
-        log.info("Processing OAuth2 user request for provider: {}", userRequest.getClientRegistration().getRegistrationId());
         OAuth2User oAuth2User = super.loadUser(userRequest);
         Map<String, Object> attributes = oAuth2User.getAttributes();
         String provider = userRequest.getClientRegistration().getRegistrationId().toUpperCase();
 
-        try {
-            OAuth2UserAttributes userAttributes = extractUserAttributes(attributes, provider);
-            User user = userRepository.findByProviderAndProviderId(provider, userAttributes.providerId())
-                    .orElseGet(() -> createOrUpdateUser(userAttributes, provider));
+        OAuth2UserAttributes userAttributes = extractUserAttributes(attributes, provider);
 
-            user = userRepository.save(user);
+        User user = userRepository.findByProviderAndProviderId(provider, userAttributes.providerId())
+                .map(existing -> updateIfNeeded(existing, userAttributes))
+                .orElseGet(() -> createNewUser(userAttributes, provider));
 
-            return new DefaultOAuth2User(
-                    Collections.singletonList(new SimpleGrantedAuthority("ROLE_" + user.getRole().name())),
-                    attributes,
-                    fromString(provider).getNameAttributeKey()
-            );
-        } catch (IllegalArgumentException e) {
-            log.error("Failed to process OAuth2 user for provider {}: {}", provider, e.getMessage());
-            throw e;
+        return new DefaultOAuth2User(
+                Collections.singletonList(new SimpleGrantedAuthority(user.getRole().getAuthority())),
+                attributes,
+                fromString(provider).getNameAttributeKey()
+        );
+    }
+
+    private User createNewUser(OAuth2UserAttributes attrs, String provider) {
+        User user = User.builder()
+                .email(attrs.email())
+                .firstname(attrs.firstName() != null ? attrs.firstName() : attrs.email().split("@")[0])
+                .lastname(attrs.lastName())
+                .password(null)
+                .provider(provider)
+                .providerId(attrs.providerId())
+                .role(Role.USER)
+                .enabled(true)
+                .build();
+        User saved = userRepository.save(user);
+
+        UserRegisteredEvent event = new UserRegisteredEvent(
+                saved.getId(),
+                saved.getEmail(),
+                saved.getFirstname() + " " + (saved.getLastname() != null ? saved.getLastname() : ""),
+                null, null, null,
+                Instant.now()
+        );
+        outboxEventPublisher.publish(String.valueOf(saved.getId()), "USER_REGISTERED", event);
+
+        log.info("Created new OAuth2 user: email={}, provider={}", saved.getEmail(), provider);
+        return saved;
+    }
+
+    private User updateIfNeeded(User user, OAuth2UserAttributes attrs) {
+        boolean updated = false;
+
+        if (attrs.firstName() != null && !attrs.firstName().equals(user.getFirstname())) {
+            user.setFirstname(attrs.firstName());
+            updated = true;
         }
+        if (attrs.lastName() != null && !attrs.lastName().equals(user.getLastname())) {
+            user.setLastname(attrs.lastName());
+            updated = true;
+        }
+
+        if (updated) {
+            user = userRepository.save(user);
+            log.debug("Updated OAuth2 user: email={}", user.getEmail());
+        }
+        return user;
     }
 
     private OAuth2UserAttributes extractUserAttributes(Map<String, Object> attributes, String provider) {
         return switch (provider) {
-            case "GOOGLE" -> {
-                String email = (String) attributes.get("email");
-
-                if (email == null) {
-                    throw new IllegalArgumentException("Email not provided by Google");
-                }
-
-                String firstName = (String) attributes.get("given_name");
-                String lastName = (String) attributes.get("family_name");
-                String providerId = (String) attributes.get("sub");
-
-                if (providerId == null) {
-                    throw new IllegalArgumentException("Provider ID (sub) not provided by Google");
-                }
-
-                if (firstName == null || lastName == null) {
-                    String fullName = (String) attributes.get("name");
-                    if (fullName != null) {
-                        String[] nameParts = fullName.split(" ", 2);
-                        firstName = nameParts[0];
-                        lastName = nameParts.length > 1 ? nameParts[1] : null;
-                    }
-                }
-
-                yield new OAuth2UserAttributes(email, firstName, lastName, providerId);
-            }
-            case "GITHUB" -> {
-                String email = (String) attributes.get("email");
-                String firstName = (String) attributes.get("login");
-                String providerId = String.valueOf(attributes.get("id"));
-
-                if (providerId == null) {
-                    throw new IllegalArgumentException("Provider ID (id) not provided by GitHub");
-                }
-
-                if (email == null) {
-                    log.warn("Email not provided by GitHub for user with login: {}, using default email", firstName);
-                    email = "github-user-" + providerId + "@default.com";
-                }
-
-                String fullName = (String) attributes.get("name");
-                String lastName = null;
-
-                if (fullName != null && fullName.contains(" ")) {
-                    String[] nameParts = fullName.split(" ", 2);
-                    firstName = nameParts[0];
-                    lastName = nameParts.length > 1 ? nameParts[1] : null;
-                    log.info("Splitting login {} into firstName: {}, lastName: {}", fullName, firstName, lastName);
-                }
-
-                yield new OAuth2UserAttributes(email, firstName, lastName, providerId);
-            }
-            default -> throw new IllegalArgumentException("Unsupported provider: " + provider);
+            case "GOOGLE" -> extractGoogleAttributes(attributes);
+            case "GITHUB" -> extractGitHubAttributes(attributes);
+            default -> throw new IllegalArgumentException("Unsupported OAuth2 provider: " + provider);
         };
     }
 
-    private User createOrUpdateUser(OAuth2UserAttributes attributes, String provider) {
-        return userRepository.findByEmail(attributes.email())
-                .map(existingUser -> updateUser(existingUser, attributes))
-                .orElseGet(() -> createNewUser(attributes, provider));
-    }
+    private OAuth2UserAttributes extractGoogleAttributes(Map<String, Object> attrs) {
+        String email = (String) attrs.get("email");
+        String providerId = (String) attrs.get("sub");
 
-    private User createNewUser(OAuth2UserAttributes attributes, String provider) {
-        log.info("Creating new user with email: {}", attributes.email());
-        return User.builder()
-                .email(attributes.email())
-                .firstname(attributes.firstName() != null ? attributes.firstName() : attributes.email() != null ? attributes.email().split("@")[0] : "Unknown")
-                .lastname(attributes.lastName())
-                .password(null)
-                .provider(provider)
-                .providerId(attributes.providerId())
-                .role(Role.USER)
-                .enabled(true)
-                .build();
-    }
+        if (email == null) throw new IllegalArgumentException("Email not provided by Google");
+        if (providerId == null) throw new IllegalArgumentException("Provider ID (sub) not provided by Google");
 
-    private User updateUser(User existingUser, OAuth2UserAttributes attributes) {
-        log.info("Updating user with email: {}", existingUser.getEmail());
-        boolean needsUpdate = !existingUser.getProviderId().equals(attributes.providerId()) ||
-                              (attributes.firstName() != null && !attributes.firstName().equals(existingUser.getFirstname())) ||
-                              (attributes.lastName() != null && !attributes.lastName().equals(existingUser.getLastname())) ||
-                              (attributes.email() != null && !attributes.email().equals(existingUser.getEmail()));
+        String firstName = (String) attrs.get("given_name");
+        String lastName = (String) attrs.get("family_name");
 
-        if (needsUpdate) {
-            existingUser.setProviderId(attributes.providerId());
-            if (attributes.firstName() != null) {
-                existingUser.setFirstname(attributes.firstName());
-            }
-            if (attributes.lastName() != null) {
-                existingUser.setLastname(attributes.lastName());
-            }
-            if (attributes.email() != null) {
-                existingUser.setEmail(attributes.email());
+        if (firstName == null) {
+            String fullName = (String) attrs.get("name");
+            if (fullName != null) {
+                String[] parts = fullName.split(" ", 2);
+                firstName = parts[0];
+                lastName = parts.length > 1 ? parts[1] : null;
             }
         }
-        return existingUser;
+
+        return new OAuth2UserAttributes(email, firstName, lastName, providerId);
+    }
+
+    private OAuth2UserAttributes extractGitHubAttributes(Map<String, Object> attrs) {
+        String providerId = String.valueOf(attrs.get("id"));
+        String login = (String) attrs.get("login");
+        String email = (String) attrs.get("email");
+
+        if (email == null) {
+            log.warn("Email not provided by GitHub for login={}, using fallback", login);
+            email = "github-" + providerId + "@placeholder.local";
+        }
+
+        String firstName = login;
+        String lastName = null;
+        String fullName = (String) attrs.get("name");
+
+        if (fullName != null && fullName.contains(" ")) {
+            String[] parts = fullName.split(" ", 2);
+            firstName = parts[0];
+            lastName = parts[1];
+        }
+
+        return new OAuth2UserAttributes(email, firstName, lastName, providerId);
     }
 
     private record OAuth2UserAttributes(String email, String firstName, String lastName, String providerId) {
-        public OAuth2UserAttributes {
-            if (!"GITHUB".equals(providerId) && email == null) {
-                throw new IllegalArgumentException("Email cannot be null for provider other than GitHub");
-            }
-            Objects.requireNonNull(providerId, "ProviderId cannot be null");
+        OAuth2UserAttributes {
+            Objects.requireNonNull(providerId, "Provider ID cannot be null");
+            Objects.requireNonNull(email, "Email cannot be null");
         }
     }
 }

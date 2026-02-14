@@ -10,6 +10,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import my.code.auth.database.repository.UserRepository;
 import my.code.auth.service.JwtService;
+import my.code.auth.service.TokenService;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
@@ -27,13 +28,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     private static final String BEARER_PREFIX = "Bearer ";
 
     private final JwtService jwtService;
+    private final TokenService tokenService;
     private final UserRepository userRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request,
                                     @NonNull HttpServletResponse response,
                                     @NonNull FilterChain filterChain) throws ServletException, IOException {
-        final String authHeader = request.getHeader(AUTHORIZATION_HEADER);
+        String authHeader = request.getHeader(AUTHORIZATION_HEADER);
 
         if (authHeader == null || !authHeader.startsWith(BEARER_PREFIX)) {
             filterChain.doFilter(request, response);
@@ -41,12 +43,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
         }
 
         try {
-            final String jwt = authHeader.substring(BEARER_PREFIX.length());
-            final String userEmail = jwtService.extractUsername(jwt);
+            String jwt = authHeader.substring(BEARER_PREFIX.length());
+            String userEmail = jwtService.extractUsername(jwt);
 
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 userRepository.findByEmail(userEmail).ifPresent(user -> {
-                    if (jwtService.isTokenValid(jwt, user)) {
+                    if (jwtService.isTokenValid(jwt, user) && tokenService.isTokenActiveInDb(jwt)) {
                         var authToken = new UsernamePasswordAuthenticationToken(
                                 user, null, user.getAuthorities()
                         );
@@ -56,7 +58,7 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 });
             }
         } catch (JwtException e) {
-            log.warn("JWT token validation failed: {}", e.getMessage());
+            log.warn("Invalid JWT token: {}", e.getMessage());
             response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
             return;
         }

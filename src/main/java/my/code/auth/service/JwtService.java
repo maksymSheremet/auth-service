@@ -1,6 +1,7 @@
 package my.code.auth.service;
 
 import io.jsonwebtoken.Claims;
+import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.io.Decoders;
 import io.jsonwebtoken.security.Keys;
@@ -63,8 +64,12 @@ public class JwtService {
     }
 
     public boolean isTokenValid(String token, User user) {
-        String username = extractUsername(token);
-        return username.equals(user.getEmail()) && !isTokenExpired(token);
+        try {
+            String username = extractUsername(token);
+            return username.equals(user.getEmail()) && !isTokenExpired(token);
+        } catch (ExpiredJwtException _) {
+            return false;
+        }
     }
 
     public boolean isRefreshToken(String token) {

@@ -1,18 +1,23 @@
-//package my.code.auth;
-//
-//import my.code.config.TestingBeans;
-//import org.junit.jupiter.api.Test;
-//import org.springframework.boot.test.context.SpringBootTest;
-//import org.springframework.context.annotation.Import;
-//import org.springframework.test.context.ActiveProfiles;
-//
-//@SpringBootTest
-//@ActiveProfiles("test")
-//@Import(TestingBeans.class)
-//class AuthServiceApplicationTests {
-//
-//    @Test
-//    void contextLoads() {
-//    }
-//
-//}
+package my.code.auth;
+
+import org.junit.jupiter.api.Test;
+
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.ApplicationContext;
+
+/**
+ * Smoke test — verifies the full Spring context loads successfully
+ * with real PostgreSQL and Kafka via Testcontainers.
+ */
+class AuthServiceApplicationTests extends BaseIntegrationTest {
+
+    @Autowired
+    private ApplicationContext applicationContext;
+
+    @Test
+    void contextLoads() {
+        assertNotNull(applicationContext, "ApplicationContext should not be null");
+    }
+}

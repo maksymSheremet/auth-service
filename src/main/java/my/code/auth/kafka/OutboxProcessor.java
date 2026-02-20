@@ -73,7 +73,6 @@ public class OutboxProcessor {
         }
     }
 
-    @Transactional
     protected void markAsProcessed(Long eventId) {
         outboxEventRepository.markAsProcessed(eventId, Instant.now());
     }

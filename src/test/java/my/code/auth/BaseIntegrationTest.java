@@ -33,7 +33,7 @@ public abstract class BaseIntegrationTest {
 
     @Container
     @ServiceConnection
-    static final KafkaContainer kafka =
+    protected static final KafkaContainer kafka =
             new KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.6.0"))
                     .withKraft();
 }

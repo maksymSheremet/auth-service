@@ -80,7 +80,7 @@ public class JwtService {
         return extractExpiration(token).isBefore(Instant.now());
     }
 
-    private <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
+    public <T> T extractClaim(String token, Function<Claims, T> claimsResolver) {
         Claims claims = Jwts.parser()
                 .verifyWith(signingKey)
                 .requireIssuer(jwtProperties.getIssuer())
@@ -94,6 +94,7 @@ public class JwtService {
         Instant now = Instant.now();
 
         return Jwts.builder()
+                .id(java.util.UUID.randomUUID().toString())
                 .subject(user.getEmail())
                 .claim(CLAIM_USER_ID, user.getId())
                 .claim(CLAIM_ROLE, user.getRole().getAuthority())

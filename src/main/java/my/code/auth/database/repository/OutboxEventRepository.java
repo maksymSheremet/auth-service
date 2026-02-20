@@ -4,6 +4,7 @@ import my.code.auth.database.entity.OutboxEvent;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
@@ -19,6 +20,7 @@ public interface OutboxEventRepository extends JpaRepository<OutboxEvent, Long> 
      * Marks an event as processed.
      */
     @Modifying
+    @Transactional
     @Query("UPDATE OutboxEvent e SET e.processed = true, e.processedAt = :now WHERE e.id = :id")
     void markAsProcessed(Long id, Instant now);
 

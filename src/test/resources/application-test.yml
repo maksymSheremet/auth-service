@@ -1,4 +1,7 @@
 spring:
+  task:
+    scheduling:
+      enabled: false
   # JPA — validate schema created by Flyway
   jpa:
     hibernate:
@@ -28,6 +31,16 @@ spring:
       key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
 
+# Kafka Outbox
+kafka:
+  outbox:
+    enabled: false
+#kafka:
+#  outbox:
+#    poll-interval-ms: 1000
+#    cleanup-days: 7
+#    cleanup-cron: "0 0 3 * * *"
+
 # JWT
 jwt:
   secret: dGVzdC1zZWNyZXQta2V5LW1pbmltdW0tMzItY2hhcnMtMTIzNDU2Nzg=
@@ -38,13 +51,6 @@ jwt:
 # BCrypt — low strength for fast tests
 bcrypt:
   strength: 10
-
-# Kafka Outbox
-kafka:
-  outbox:
-    poll-interval-ms: 1000
-    cleanup-days: 7
-    cleanup-cron: "0 0 3 * * *"
 
 # Logging
 logging:

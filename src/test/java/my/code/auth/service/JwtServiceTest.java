@@ -1,7 +1,6 @@
 package my.code.auth.service;
 
 import io.jsonwebtoken.Jwts;
-import io.jsonwebtoken.security.Keys;
 import my.code.auth.config.security.JwtProperties;
 import my.code.auth.database.entity.Role;
 import my.code.auth.database.entity.User;
@@ -15,7 +14,12 @@ import java.time.Instant;
 import java.util.Base64;
 import java.util.Date;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Unit tests for {@link JwtService}.
@@ -30,12 +34,12 @@ class JwtServiceTest {
     private User user;
 
     private static final String ISSUER = "auth-service";
-    private static final long ACCESS_EXPIRATION_MS = 3600000L;   // 1 hour
-    private static final long REFRESH_EXPIRATION_MS = 604800000L; // 7 days
+    private static final long ACCESS_EXPIRATION_MS = 3600000L;
+    private static final long REFRESH_EXPIRATION_MS = 604800000L;
 
     @BeforeEach
     void setUp() {
-        signingKey = Keys.secretKeyFor(io.jsonwebtoken.SignatureAlgorithm.HS256);
+        signingKey = Jwts.SIG.HS256.key().build();
         String base64Secret = Base64.getEncoder().encodeToString(signingKey.getEncoded());
 
         jwtProperties = new JwtProperties();
@@ -225,7 +229,7 @@ class JwtServiceTest {
         @Test
         @DisplayName("different signing key → throws")
         void differentKey() {
-            SecretKey otherKey = Keys.secretKeyFor(io.jsonwebtoken.SignatureAlgorithm.HS256);
+            SecretKey otherKey = Jwts.SIG.HS256.key().build();
             String foreign = Jwts.builder()
                     .subject("john@example.com").issuer(ISSUER)
                     .issuedAt(Date.from(Instant.now()))

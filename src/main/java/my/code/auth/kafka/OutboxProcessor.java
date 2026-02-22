@@ -45,17 +45,8 @@ public class OutboxProcessor {
         List<OutboxEvent> events = outboxEventRepository.findTop50ByProcessedFalseOrderByCreatedAtAsc();
 
         for (OutboxEvent event : events) {
-            try {
-                String topic = resolveTopicFor(event.getEventType());
-                kafkaTemplate.send(topic, event.getAggregateId(), event.getPayload()).get();
-
-                markAsProcessed(event.getId());
-                log.debug("Published outbox event id={}, type={}", event.getId(), event.getEventType());
-
-            } catch (Exception e) {
-                log.error("Failed to publish outbox event id={}, type={}: {}",
-                        event.getId(), event.getEventType(), e.getMessage());
-                break; // stop processing to preserve ordering
+            if (!processSingleEvent(event)) {
+                break;
             }
         }
     }
@@ -75,6 +66,26 @@ public class OutboxProcessor {
 
     protected void markAsProcessed(Long eventId) {
         outboxEventRepository.markAsProcessed(eventId, Instant.now());
+    }
+
+    private boolean processSingleEvent(OutboxEvent event) {
+        try {
+            String topic = resolveTopicFor(event.getEventType());
+            kafkaTemplate.send(topic, event.getAggregateId(), event.getPayload()).get();
+
+            markAsProcessed(event.getId());
+            log.debug("Published outbox event id={}, type={}", event.getId(), event.getEventType());
+
+            return true;
+        } catch (InterruptedException _) {
+            log.error("Thread was interrupted while publishing outbox event id={}", event.getId());
+            Thread.currentThread().interrupt();
+            return false;
+        } catch (Exception e) {
+            log.error("Failed to publish outbox event id={}, type={}: {}",
+                    event.getId(), event.getEventType(), e.getMessage());
+            return false;
+        }
     }
 
     private String resolveTopicFor(String eventType) {

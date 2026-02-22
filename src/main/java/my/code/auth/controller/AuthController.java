@@ -2,17 +2,19 @@ package my.code.auth.controller;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import my.code.auth.config.security.SecurityUser;
+import my.code.auth.database.entity.User;
 import my.code.auth.dto.AuthenticationRequest;
 import my.code.auth.dto.AuthenticationResponse;
 import my.code.auth.dto.ChangePasswordRequest;
 import my.code.auth.dto.RefreshTokenRequest;
 import my.code.auth.dto.RegisterRequest;
+import my.code.auth.dto.UserInfo;
 import my.code.auth.service.AuthenticationService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
-import my.code.auth.database.entity.User;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -58,9 +60,7 @@ public class AuthController {
     @GetMapping("/me")
     @PreAuthorize("isAuthenticated()")
     public ResponseEntity<UserInfo> me(Authentication authentication) {
-        User user = (User) authentication.getPrincipal();
+        User user = ((SecurityUser) authentication.getPrincipal()).user();
         return ResponseEntity.ok(new UserInfo(user.getId(), user.getEmail(), user.getRole().name()));
     }
-
-    public record UserInfo(Long id, String email, String role) {}
 }

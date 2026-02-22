@@ -23,10 +23,6 @@ public class SecurityConfig {
     private final CustomOAuth2UserService customOAuth2UserService;
     private final OAuth2AuthenticationSuccessHandler oAuth2AuthenticationSuccessHandler;
 
-    /**
-     * OAuth2 filter chain — потребує сесій для authorization code flow.
-     * Обробляє тільки /oauth2/** та /login/oauth2/** endpoints.
-     */
     @Bean
     @Order(1)
     public SecurityFilterChain oauth2FilterChain(HttpSecurity http) throws Exception {
@@ -48,10 +44,6 @@ public class SecurityConfig {
                 .build();
     }
 
-    /**
-     * API filter chain — повністю stateless, JWT-based authentication.
-     * Обробляє всі інші запити.
-     */
     @Bean
     @Order(2)
     public SecurityFilterChain apiFilterChain(HttpSecurity http) throws Exception {
@@ -72,7 +64,7 @@ public class SecurityConfig {
                         .sessionCreationPolicy(SessionCreationPolicy.STATELESS)
                 )
                 .exceptionHandling(ex -> ex
-                        .authenticationEntryPoint((request, response, authException) ->
+                        .authenticationEntryPoint((_, response, authException) ->
                                 response.sendError(HttpServletResponse.SC_UNAUTHORIZED, authException.getMessage()))
                 )
                 .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class)

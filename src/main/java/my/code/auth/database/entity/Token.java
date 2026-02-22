@@ -30,8 +30,8 @@ public class Token {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false, unique = true)
-    private String token;
+    @Column(name = "token", nullable = false, unique = true)
+    private String tokenValue;
 
     @Builder.Default
     @Enumerated(EnumType.STRING)

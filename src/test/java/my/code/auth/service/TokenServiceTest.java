@@ -20,7 +20,12 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import java.time.Instant;
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -76,7 +81,7 @@ class TokenServiceTest {
             verify(tokenRepository).save(tokenCaptor.capture());
 
             Token saved = tokenCaptor.getValue();
-            assertEquals(jwt, saved.getToken());
+            assertEquals(jwt, saved.getTokenValue());
             assertEquals(TokenType.BEARER, saved.getTokenType());
             assertEquals(user, saved.getUser());
             assertEquals(expiration, saved.getExpiresAt());
@@ -101,7 +106,7 @@ class TokenServiceTest {
             verify(tokenRepository).save(tokenCaptor.capture());
 
             Token saved = tokenCaptor.getValue();
-            assertEquals(jwt, saved.getToken());
+            assertEquals(jwt, saved.getTokenValue());
             assertEquals(TokenType.REFRESH, saved.getTokenType());
             assertEquals(user, saved.getUser());
         }
@@ -139,23 +144,23 @@ class TokenServiceTest {
         void validRefreshToken() {
             Token refreshToken = Token.builder()
                     .id(10L)
-                    .token("refresh-jwt")
+                    .tokenValue("refresh-jwt")
                     .tokenType(TokenType.REFRESH)
                     .user(user)
                     .createdAt(Instant.now())
                     .build();
 
-            when(tokenRepository.findByToken("refresh-jwt")).thenReturn(Optional.of(refreshToken));
+            when(tokenRepository.findByTokenValue("refresh-jwt")).thenReturn(Optional.of(refreshToken));
 
             tokenService.revokeByRefreshToken("refresh-jwt");
 
-            verify(tokenRepository).findByToken("refresh-jwt");
+            verify(tokenRepository).findByTokenValue("refresh-jwt");
         }
 
         @Test
         @DisplayName("token not found -> throws InvalidTokenException")
         void tokenNotFound() {
-            when(tokenRepository.findByToken("unknown")).thenReturn(Optional.empty());
+            when(tokenRepository.findByTokenValue("unknown")).thenReturn(Optional.empty());
 
             assertThrows(InvalidTokenException.class, () -> tokenService.revokeByRefreshToken("unknown"));
         }
@@ -165,13 +170,13 @@ class TokenServiceTest {
         void bearerTokenThrows() {
             Token bearerToken = Token.builder()
                     .id(5L)
-                    .token("bearer-jwt")
+                    .tokenValue("bearer-jwt")
                     .tokenType(TokenType.BEARER)
                     .user(user)
                     .createdAt(Instant.now())
                     .build();
 
-            when(tokenRepository.findByToken("bearer-jwt")).thenReturn(Optional.of(bearerToken));
+            when(tokenRepository.findByTokenValue("bearer-jwt")).thenReturn(Optional.of(bearerToken));
 
             assertThrows(InvalidTokenException.class, () -> tokenService.revokeByRefreshToken("bearer-jwt"));
         }
@@ -185,13 +190,13 @@ class TokenServiceTest {
         @DisplayName("active token (not expired, not revoked) -> true")
         void activeToken() {
             Token active = Token.builder()
-                    .token("active-jwt")
+                    .tokenValue("active-jwt")
                     .expired(false)
                     .revoked(false)
                     .createdAt(Instant.now())
                     .build();
 
-            when(tokenRepository.findByToken("active-jwt")).thenReturn(Optional.of(active));
+            when(tokenRepository.findByTokenValue("active-jwt")).thenReturn(Optional.of(active));
 
             assertTrue(tokenService.isTokenActiveInDb("active-jwt"));
         }
@@ -200,13 +205,13 @@ class TokenServiceTest {
         @DisplayName("expired token -> false")
         void expiredToken() {
             Token expired = Token.builder()
-                    .token("expired-jwt")
+                    .tokenValue("expired-jwt")
                     .expired(true)
                     .revoked(false)
                     .createdAt(Instant.now())
                     .build();
 
-            when(tokenRepository.findByToken("expired-jwt")).thenReturn(Optional.of(expired));
+            when(tokenRepository.findByTokenValue("expired-jwt")).thenReturn(Optional.of(expired));
 
             assertFalse(tokenService.isTokenActiveInDb("expired-jwt"));
         }
@@ -215,13 +220,13 @@ class TokenServiceTest {
         @DisplayName("revoked token -> false")
         void revokedToken() {
             Token revoked = Token.builder()
-                    .token("revoked-jwt")
+                    .tokenValue("revoked-jwt")
                     .expired(false)
                     .revoked(true)
                     .createdAt(Instant.now())
                     .build();
 
-            when(tokenRepository.findByToken("revoked-jwt")).thenReturn(Optional.of(revoked));
+            when(tokenRepository.findByTokenValue("revoked-jwt")).thenReturn(Optional.of(revoked));
 
             assertFalse(tokenService.isTokenActiveInDb("revoked-jwt"));
         }
@@ -229,7 +234,7 @@ class TokenServiceTest {
         @Test
         @DisplayName("token not found -> false")
         void tokenNotFound() {
-            when(tokenRepository.findByToken("missing")).thenReturn(Optional.empty());
+            when(tokenRepository.findByTokenValue("missing")).thenReturn(Optional.empty());
 
             assertFalse(tokenService.isTokenActiveInDb("missing"));
         }

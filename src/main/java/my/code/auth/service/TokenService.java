@@ -23,7 +23,7 @@ public class TokenService {
 
     @Transactional
     public void saveAccessToken(User user, String jwt) {
-        revokeAllUserTokens(user.getId());
+        doRevokeAllUserTokens(user.getId());
         saveToken(user, jwt, TokenType.BEARER);
     }
 
@@ -34,32 +34,36 @@ public class TokenService {
 
     @Transactional
     public void revokeAllUserTokens(Long userId) {
+        doRevokeAllUserTokens(userId);
+    }
+
+    @Transactional
+    public void revokeByRefreshToken(String refreshToken) {
+        Token token = tokenRepository.findByTokenValue(refreshToken)
+                .filter(t -> t.getTokenType() == TokenType.REFRESH)
+                .orElseThrow(() -> new InvalidTokenException("Invalid refresh token"));
+
+        doRevokeAllUserTokens(token.getUser().getId());
+        log.info("Revoked all tokens via refresh token for userId={}", token.getUser().getId());
+    }
+
+    @Transactional(readOnly = true)
+    public boolean isTokenActiveInDb(String jwt) {
+        return tokenRepository.findByTokenValue(jwt)
+                .map(token -> !token.isExpired() && !token.isRevoked())
+                .orElse(false);
+    }
+
+    private void doRevokeAllUserTokens(Long userId) {
         int revoked = tokenRepository.revokeAllTokensByUser(userId);
         if (revoked > 0) {
             log.debug("Revoked {} tokens for userId={}", revoked, userId);
         }
     }
 
-    @Transactional
-    public void revokeByRefreshToken(String refreshToken) {
-        Token token = tokenRepository.findByToken(refreshToken)
-                .filter(t -> t.getTokenType() == TokenType.REFRESH)
-                .orElseThrow(() -> new InvalidTokenException("Invalid refresh token"));
-
-        revokeAllUserTokens(token.getUser().getId());
-        log.info("Revoked all tokens via refresh token for userId={}", token.getUser().getId());
-    }
-
-    @Transactional(readOnly = true)
-    public boolean isTokenActiveInDb(String jwt) {
-        return tokenRepository.findByToken(jwt)
-                .map(token -> !token.isExpired() && !token.isRevoked())
-                .orElse(false);
-    }
-
     private void saveToken(User user, String jwt, TokenType tokenType) {
         Token token = Token.builder()
-                .token(jwt)
+                .tokenValue(jwt)
                 .tokenType(tokenType)
                 .user(user)
                 .createdAt(Instant.now())

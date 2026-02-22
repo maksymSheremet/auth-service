@@ -8,6 +8,7 @@ import jakarta.servlet.http.HttpServletResponse;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import my.code.auth.config.security.SecurityUser;
 import my.code.auth.database.repository.UserRepository;
 import my.code.auth.service.JwtService;
 import my.code.auth.service.TokenService;
@@ -48,12 +49,12 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
             if (userEmail != null && SecurityContextHolder.getContext().getAuthentication() == null) {
                 userRepository.findByEmail(userEmail).ifPresent(user -> {
-                    String tokenType = jwtService.extractClaim(jwt, c -> c.get("tokenType", String.class));
-                    boolean isAccessToken = "ACCESS".equals(tokenType);
-
-                    if (isAccessToken && jwtService.isTokenValid(jwt, user) && tokenService.isTokenActiveInDb(jwt)) {
+                    if (jwtService.isTokenValid(jwt, user)
+                        && !jwtService.isRefreshToken(jwt)
+                        && tokenService.isTokenActiveInDb(jwt)) {
+                        SecurityUser securityUser = new SecurityUser(user);
                         var authToken = new UsernamePasswordAuthenticationToken(
-                                user, null, user.getAuthorities()
+                                securityUser, null, securityUser.getAuthorities()
                         );
                         authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                         SecurityContextHolder.getContext().setAuthentication(authToken);

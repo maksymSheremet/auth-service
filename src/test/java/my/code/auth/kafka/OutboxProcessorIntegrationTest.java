@@ -122,7 +122,6 @@ class OutboxProcessorIntegrationTest extends BaseIntegrationTest {
                 .build();
         outboxEventRepository.saveAndFlush(unknown);
 
-        // Не кидає exception (ловить всередині), але event залишається unprocessed
         assertDoesNotThrow(() -> outboxProcessor.processOutbox());
 
         OutboxEvent stillUnprocessed = outboxEventRepository.findById(unknown.getId()).orElseThrow();
@@ -132,7 +131,6 @@ class OutboxProcessorIntegrationTest extends BaseIntegrationTest {
     @Test
     @DisplayName("cleanup removes old processed events, keeps recent and unprocessed")
     void cleanup_removesOldProcessedEvents() {
-        // Старий processed event (10 днів тому)
         OutboxEvent old = OutboxEvent.builder()
                 .aggregateId("old-1")
                 .eventType("USER_REGISTERED")
@@ -142,7 +140,6 @@ class OutboxProcessorIntegrationTest extends BaseIntegrationTest {
                 .build();
         outboxEventRepository.saveAndFlush(old);
 
-        // Свіжий processed event (1 година тому)
         OutboxEvent recent = OutboxEvent.builder()
                 .aggregateId("recent-1")
                 .eventType("USER_REGISTERED")
@@ -152,7 +149,6 @@ class OutboxProcessorIntegrationTest extends BaseIntegrationTest {
                 .build();
         outboxEventRepository.saveAndFlush(recent);
 
-        // Unprocessed event
         OutboxEvent unprocessed = OutboxEvent.builder()
                 .aggregateId("new-1")
                 .eventType("USER_REGISTERED")

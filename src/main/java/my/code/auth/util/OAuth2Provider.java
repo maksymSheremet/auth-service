@@ -17,7 +17,7 @@ public enum OAuth2Provider {
     public static OAuth2Provider fromString(String provider) {
         try {
             return valueOf(provider.toUpperCase());
-        } catch (IllegalArgumentException e) {
+        } catch (IllegalArgumentException _) {
             return UNKNOWN;
         }
     }

@@ -1,4 +1,4 @@
-package my.code.auth.service;
+package my.code.auth.service.impl;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -15,6 +15,9 @@ import my.code.auth.exception.InvalidPasswordException;
 import my.code.auth.exception.InvalidTokenException;
 import my.code.auth.exception.UserNotFoundException;
 import my.code.auth.kafka.OutboxEventPublisher;
+import my.code.auth.service.AuthenticationService;
+import my.code.auth.service.JwtService;
+import my.code.auth.service.TokenService;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.crypto.password.PasswordEncoder;

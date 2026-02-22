@@ -1,5 +1,6 @@
 package my.code.auth.util;
 
+import my.code.auth.config.security.SecurityUser;
 import my.code.auth.database.entity.User;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
@@ -7,18 +8,12 @@ import org.springframework.stereotype.Component;
 
 import java.util.Optional;
 
-/**
- * Utility for extracting authenticated user info from SecurityContext.
- */
 @Component
 public class AuthUtils {
 
-    /**
-     * Returns the authenticated User entity, if available.
-     */
     public Optional<User> getCurrentUser() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
-        if (auth != null && auth.getPrincipal() instanceof User user) {
+        if (auth != null && auth.getPrincipal() instanceof SecurityUser(User user)) {
             return Optional.of(user);
         }
         return Optional.empty();

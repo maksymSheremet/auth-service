@@ -1,5 +1,6 @@
 package my.code.auth.util;
 
+import my.code.auth.config.security.SecurityUser;
 import my.code.auth.database.entity.Role;
 import my.code.auth.database.entity.User;
 import org.junit.jupiter.api.AfterEach;
@@ -12,7 +13,9 @@ import org.springframework.security.core.context.SecurityContextHolder;
 
 import java.util.Optional;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 /**
  * Unit tests for {@link AuthUtils}.
@@ -33,7 +36,8 @@ class AuthUtilsTest {
     }
 
     private void setAuthenticatedUser(User user) {
-        var auth = new UsernamePasswordAuthenticationToken(user, null, user.getAuthorities());
+        SecurityUser securityUser = new SecurityUser(user);
+        var auth = new UsernamePasswordAuthenticationToken(securityUser, null, securityUser.getAuthorities());
         SecurityContextHolder.getContext().setAuthentication(auth);
     }
 

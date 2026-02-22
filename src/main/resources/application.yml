@@ -1,0 +1,102 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: auth-service
+
+  # Database
+  datasource:
+    url: ${DATA_URL}
+    username: ${DATA_USER}
+    password: ${DATA_PASSWORD}
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      connection-timeout: 30000
+
+  # JPA
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: false
+
+  # OAuth2
+  security:
+    oauth2:
+      client:
+        registration:
+          google:
+            client-id: ${YOUR_GOOGLE_CLIENT_ID}
+            client-secret: ${YOUR_GOOGLE_CLIENT_SECRET}
+            scope: profile, email
+          github:
+            client-id: ${YOUR_GITHUB_CLIENT_ID}
+            client-secret: ${YOUR_GITHUB_CLIENT_SECRET}
+            scope: read:user,user:email
+        provider:
+          github:
+            user-info-uri: ${YOUR_GITHUB_INFO_URI}
+            user-name-attribute: login
+
+  # Flyway
+  flyway:
+    enabled: true
+    baseline-on-migrate: false
+    locations: classpath:db/migration
+
+
+  # Kafka
+  kafka:
+    bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+      retries: 3
+
+# Kafka Topics & Outbox
+kafka:
+  topic:
+    user-registered: user-registered-events
+  outbox:
+    poll-interval-ms: 5000
+    cleanup-days: 7
+    cleanup-cron: "0 0 3 * * *"
+
+# JWT
+jwt:
+  secret: ${YOUR_JWT_SECRET_KEY}
+  expiration: 3600000
+  refresh-expiration: 604800000
+  issuer: auth-service
+
+# BCrypt
+bcrypt:
+  strength: ${BCRYPT_STRENGTH:12}
+
+# Logging
+logging:
+  level:
+    root: INFO
+    my.code.auth: INFO
+    org.springframework.kafka: INFO
+
+# Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: when-authorized
+  health:
+    livenessstate:
+      enabled: true
+    readinessstate:
+      enabled: true

@@ -1,0 +1,61 @@
+spring:
+  task:
+    scheduling:
+      enabled: false
+  # JPA — validate schema created by Flyway
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: true
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Datasource — provided by Testcontainers @ServiceConnection (no hardcoded URL)
+
+  # Flyway — enabled, uses real PostgreSQL via Testcontainers
+  flyway:
+    enabled: true
+    clean-disabled: false
+
+  # Kafka — provided by Testcontainers @ServiceConnection (no hardcoded bootstrap-servers)
+  kafka:
+    producer:
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.apache.kafka.common.serialization.StringSerializer
+      acks: all
+    consumer:
+      group-id: test-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+
+# Kafka Outbox
+kafka:
+  outbox:
+    enabled: false
+#kafka:
+#  outbox:
+#    poll-interval-ms: 1000
+#    cleanup-days: 7
+#    cleanup-cron: "0 0 3 * * *"
+
+# JWT
+jwt:
+  secret: dGVzdC1zZWNyZXQta2V5LW1pbmltdW0tMzItY2hhcnMtMTIzNDU2Nzg=
+  expiration: 3600000
+  refresh-expiration: 604800000
+  issuer: auth-service
+
+# BCrypt — low strength for fast tests
+bcrypt:
+  strength: 10
+
+# Logging
+logging:
+  level:
+    my.code.auth: DEBUG
+    org.springframework.test: INFO
+    org.testcontainers: INFO
+    org.flywaydb: DEBUG
